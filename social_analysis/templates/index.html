@@ -1,0 +1,455 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Social Analysis</title>
+
+    <style>
+      body {
+        color: #d3d3d3;
+        font: 10pt arial;
+        background-color: #222222;
+      }
+
+      #mynetwork {
+        position: fixed;
+        left: 0px;
+        top: 0px;
+        bottom: 0px;
+        right: 30%;
+        padding: 1em;
+        /* min-height: 100vh; */
+        border: 1px solid #444444;
+        background-color: #222222;
+      }
+
+      #side {
+        position: absolute;
+        left: 70%;
+        padding: 1em;
+      }
+
+      #title {
+        margin-bottom: 5em;
+      }
+    </style>
+
+    <script type="text/javascript" src="https://unpkg.com/vis-data@latest/peer/umd/vis-data.min.js"></script>
+    <script type="text/javascript" src="https://unpkg.com/vis-network@latest/peer/umd/vis-network.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/vis-network/styles/vis-network.min.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-+0n0xVW2eSR5OomGNYDnhzAbDsOXxcvSN1TPprVMTNDbiYZCxYbOOl7+AMvyTG2x" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-gtEjrD/SeCtmISkJkNUaaKMoLD0//ElJ19smozuHV6z3Iehds+3Ulb9Bn9Plx0x4" crossorigin="anonymous"></script> 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.5.0/font/bootstrap-icons.css"> 
+  </head>
+  <body>
+    <div id="side" class="p-3 mb-2 bg-dark text-white">
+        <div id="title">
+          <h1 class="fw-lighter">Social Analysis</h1>
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="filegraph" class="form-control-sm fw-lighter" accept="*/*" onchange="this.form.submit()">
+            <p class="fw-lighter"><input type="checkbox" name="directed" value="directed" id="is-directed" class="form-check-input fw-lighter"> Направленный ли граф?</p>
+          </form>
+          <form method="post" action = "{% url 'index' %}">
+            {% csrf_token %}
+          <select name="centralities" id="centralities" class="form-select form-select-sm fw-lighter" onchange="this.form.submit()">
+            <option value="degree_centrality">Degree centrality</option>
+            <option value="eigenvector_centrality">Eigenvector centrality</option>
+            <option value="closeness_centrality">Closeness centrality</option>
+            <option value="betweenness_centrality">Betweenness centrality</option>
+            <option value="harmonic_centrality">Harmonic centrality</option>
+          </select>
+          <select name="communities" id="communities" class="form-select form-select-sm fw-lighter" onchange="this.form.submit()">
+            
+            <option value="leiden" >Leiden algorithm</option>
+            <option value="walktrap" >Walktrap algorithm</option>
+            <option value="infomap" >Infomap algorithm</option>
+            <option value="eigenvector" >Eigenvector algorithm</option>
+            <option value="belief" >Belief algorithm</option>
+            <option value="chinesewhispers" >Chinesewhispers algorithm</option>
+            <option value="markov_clustering" >Markov clustering</option>
+            <option value="rber_pots" >Rber pots algorithm</option>
+            <option value="rb_pots" >Rb pots algorithm</option>
+            <option value="significance_communities" >Significance communities algorithm</option>
+            <option value="spinglass" >Spinglass algorithm</option>
+            <option value="surprise_communities" >Surprise algorithm</option>
+            <option value="agdl" >AGDL algorithm</option>
+            <option value="girvan_newman" selected>Girvan-Newman algorithm</option>
+            <option value="aslpaw" >ASLPAW algorithm (overlapping) </option>
+            <option value="demon" >DEMON algorithm (overlapping) </option>
+            <option value="ego_networks" >EGO networks algorithm (overlapping) </option>
+            <option value="lfm" >LFM algorithm (overlapping) </option>
+            <option value="node_perception" >Node perception (overlapping) </option>
+            <option value="slpa" >SLPA algorithm (overlapping) </option>
+            {% if not directed %}
+            <option value="greedy_modularity">Fast Greedy  algorithm</option>
+            <option value="louvain">Louvain algorithm</option>
+            <option value="async_fluid" >Fluid algorithm</option>
+            <option value="der" >DER algorithm</option>
+            <option value="edmot" >EdMot algorithm</option>
+            <option value="em" >EM algorithm</option>
+            <option value="ga" >GA algorithm</option>
+            <option value="label_propagation" >Label Propagation</option>
+            <option value="big_clam" >BigCLAM algorithm (overlapping) </option>
+            <option value="conga" >CONGA algorithm (overlapping) </option>
+            <option value="congo" >CONGO algorithm (overlapping) </option>
+            <option value="danmf" >DANMF algorithm (overlapping) </option>
+            <option value="egonet_splitter" >Egonet Splitter algorithm (overlapping) </option>
+            <option value="kclique" >kClique algorithm (overlapping) </option>
+            <option value="lais2" >LAIS2 algorithm (overlapping) </option>
+            <option value="multicom" >MULTICOM algorithm (overlapping) </option>
+            <option value="nnsed" >NNSED algorithm (overlapping) </option>
+            <option value="percomvc" >PERCOMVC algorithm (overlapping) </option>
+            {% endif %}
+          </select>
+        </form>
+        <form method="post" id="path-form" action="{% url 'index' %}">
+          {% csrf_token %}
+          <p class="fw-lighter">Связь двух пользователей (id) <br>
+            От: <input type="text" id="from-node" class="fw-lighter" name="from-node" value="{{ from_node }}" onkeypress="return focusInput(event, this.id)"> <br>
+            До: <input type="text" id="to-node" class="fw-lighter" name="to-node" value="{{ to_node }}" onkeypress="return focusInput(event, this.id)">
+          </p>
+        </form>
+        {% if short_path is True %}
+        <button class="btn btn-primary" id="button-path" onclick="pathHighlight({{ path|safe }});">Выделить путь</button><p class="fw-lighter" id="path"></p>
+        {% endif %}
+        <hr>
+          <p class="fs-6 fw-lighter lh-1">
+            Количество вершин: {{ number_of_nodes }}</p>
+          <p class="fs-6 fw-lighter lh-1">
+            Количество рёбер:  {{ number_of_edges }}</p>
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Количество ребер начинающихся и заканчивающихся в одной вершине">
+            Количество петлей: {{ number_of_selfloops }}</a></p>
+          {% if not directed %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Количество трех соединенных вершин">
+            Количество треугольников: {{ number_of_triangles }}</a></p>
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Количество попарно смежных вершин неориентированного графа">
+            Количество клик: {{ number_of_clique }}</a></p>
+            {% endif %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Самое большое количество связей у вершины графа">
+            Максимальное количество соседей: {{ dmax }}</a></p>
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Среднее количество связей вершин графа">
+            Среднее количество соседей: {{ av_degree }}</a></p>
+          {% if connected %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Число, равное расстоянию между наиболее удаленными друг от друга вершинами графа">
+            Диаметр: {{ diameter }}</a></p>
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Среднее расстояние между двумя случайными вершинами">
+            Среднее расстояние: {{ av_path }}</a></p>
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Множество узлов с эксцентриситетом, равным радиусу">
+            Центральные узлы: {{ center }}</a></p>
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Совокупность узлов с эксцентриситетом, равным диаметру">
+            Узлов на периферии: {{ periphery }}</a></p> 
+            {% endif %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Степенное распределение степеней вершин">
+            Экспонента степенного закона распределения соседей: {{ exp }}</a></p>
+          {% if directed %}
+          {% if strongly_connected %}
+          <p class="fs-6 fw-lighter lh-1">
+            Количество вершин в компоненте сильной связности: {{ nodes_strong }}</p>
+          <p class="fs-6 fw-lighter lh-1">
+            Количество рёбер в компоненте сильной связности:  {{ edges_strong }}</p>
+            {% endif %}
+          <p class="fs-6 fw-lighter lh-1">
+            Количество вершин в компоненте слабой связности: {{ nodes_weak }}</p>
+          <p class="fs-6 fw-lighter lh-1">
+            Количество рёбер в компоненте слабой связности:  {{ edges_weak }}</p>
+          {% if strongly_connected %}  
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Среднее расстояние в компоненте сильной связности">
+          Среднее расстояние в компоненте сильной связности: {{ av_path_strong }} </a></p>
+          {% endif %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Среднее расстояние в компоненте слабой связности">
+          Среднее расстояние в компоненте слабой связности: {{ av_path_weak }}</a></p>
+          {% endif %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Доля всех возможных триад, присутствующих в графе">
+            Кластеризация: {{ transitivity }}</a></p>
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Усредненный коэффициент кластеризации">
+            Средний коэффициент кластеризации: {{ clustering }}</a></p> 
+          {% if directed %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Отношение количества ребер, указывающих в обоих направлениях, к общему количеству ребер в графе">
+            Уровень взаимности графа: {{ reciprocity }}</a></p>
+          {% endif %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Минимальное количество узлов, которые необходимо удалить, чтобы разобщить граф или сделать его тривиальным">
+            Уровень связности графа: {{ connectivity }}</a></p>
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Показывает уровень гомофилии в данном графе">
+            Уровень ассортативности связей: {{ assortativity }}</a></p>
+            {% if directed %}
+            {% if strongly_connected %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Уровень взаимности компоненты сильной связности">
+          Уровень взаимности компоненты сильной связности:  {{ rec_strong }} </a></p>
+          {% endif %}
+          <p class="fs-6 fw-lighter lh-1">
+            <a data-toggle="popover" title="Информация" data-content="Уровень взаимности компоненты слабой связности">
+          Уровень взаимности компоненты слабой связности: {{ rec_weak }} </a></p>
+          {% endif %}
+                   
+    </div>
+    </div>
+    <div id="mynetwork"></div>
+    <script type="text/javascript">
+      $(document).ready(function(){
+          $('[data-toggle="popover"]').popover({
+            placement : 'top',
+            trigger : 'hover',
+            content: function() {
+              var content = $(this).attr("data-content");
+              return content;
+            },
+            container: 'body'
+        });   
+      });
+
+      var network;
+      var allNodes;
+      var highlightActive = false;
+      function htmlTitle(html) {
+        const container = document.createElement("div");
+        container.innerHTML = html;
+        container.onmouseover = function setPic(event) {}
+        return container;
+      }
+
+      centralities.value = "{{ centrality_type }}";
+      communities.value = "{{ community_type }}";
+
+      {% if directed %}
+      document.getElementById("is-directed").checked = true;
+      {% endif %}
+
+      var nodes = {{ nodes|safe }};
+      var edges = {{ edges|safe }};
+      
+      for (var i = 0; i < nodes.length; i++) {
+        nodes[i].title = htmlTitle('<img height=150 weight=150>' + nodes[i].title)
+      }
+
+      var nodesDataset = new vis.DataSet(nodes); 
+      var edgesDataset = new vis.DataSet(edges); 
+
+      function focusInput(e, id) {
+          if (e.keyCode == 13) { 
+              if (id == "from-node") {
+                to = document.getElementById("to-node");
+                if (to.value != "") {
+                  form = document.getElementById("path-form");
+                  form.submit();
+                } else {
+                  to.focus();
+                  return false;
+                }  
+              } else if (id == "to-node") {
+                from = document.getElementById("from-node");
+                if (from.value != "") {
+                  form = document.getElementById("path-form");
+                  form.submit();
+                } else {
+                  from.focus();
+                  return false;
+                }
+              }      
+              
+          }
+      }
+
+      function redrawAll() {
+        var container = document.getElementById("mynetwork");
+        var options = {
+          nodes: {
+            shape: "dot",
+            size: 30,
+            font: {
+                size: 16,
+                color: "#ffffff",
+            },
+            borderWidth: 2,
+          },
+          edges: {
+            width: 1,
+            color: { inherit: "both" },
+            // length: 200,
+            smooth: {
+              type: "continuous",
+            },
+          },
+          layout: {
+            randomSeed: 1,
+            improvedLayout: true
+          },
+          physics: {
+            enabled: true,
+            solver: "forceAtlas2Based",
+            stabilization: {
+              iterations: 500     
+            }
+            // repulsion: {
+            //   nodeDistance: 30 
+            // }
+          },
+          interaction: {
+            hideEdgesOnDrag: false,
+            hideEdgesOnZoom: false,
+          },
+        };
+        var data = { nodes: nodesDataset, edges: edgesDataset }; 
+
+        network = new vis.Network(container, data, options);
+        network.stabilize();
+
+        network.on("showPopup", function (node_id) {
+            const url = 'https://thispersondoesnotexist.com/image?cache=' + Date.now();
+            var node_img = network.canvas.body.nodes[node_id].options.title.children[0];
+            node_img.src = url;
+        });
+
+        
+        allNodes = nodesDataset.get({ returnType: "Object" });
+        allEdges = edgesDataset.get({ returnType: "Object"});
+        
+        {% if short_path is True %}
+        var path = {{ path|safe }};
+        if (path) {
+          pathHighlight(path);
+          p = document.getElementById("path");
+          p.innerText = "Путь проходит через следующие вершины: " + path;
+        } else {
+          p = document.getElementById("path");
+          p.innerText = "Пути не существует";
+          b = document.getElementById("button-path");
+          b.remove();
+        }
+        {% endif %}
+
+        network.on("click", neighbourhoodHighlight);
+      }
+
+      function pathHighlight(path) {
+        for (var nodeId in allNodes) {
+            allNodes[nodeId].color = "rgba(200,200,200,0.5)";
+            if (allNodes[nodeId].hiddenLabel === undefined) {
+              allNodes[nodeId].hiddenLabel = allNodes[nodeId].label;
+            //   allNodes[nodeId].label = undefined;
+            }
+          }
+
+          for (i = 0; i < path.length; i++) {
+            allNodes[path[i]].color = undefined;
+            if (allNodes[path[i]].hiddenLabel !== undefined) {
+              allNodes[path[i]].label =
+                allNodes[path[i]].hiddenLabel;
+              allNodes[path[i]].hiddenLabel = undefined;
+            }
+          }
+
+        var updateArray = [];
+        for (nodeId in allNodes) {
+          if (allNodes.hasOwnProperty(nodeId)) {
+            updateArray.push(allNodes[nodeId]);
+          }
+        }
+        nodesDataset.update(updateArray);
+
+        // network.selectNodes(path);
+
+      }
+
+      function neighbourhoodHighlight(params) {
+        // if something is selected:
+        if (params.nodes.length > 0) {
+          highlightActive = true;
+          var i, j;
+          var selectedNode = params.nodes[0];
+          var degrees = 1;
+
+          // mark all nodes as hard to read.
+          for (var nodeId in allNodes) {
+            allNodes[nodeId].color = "rgba(200,200,200,0.5)";
+            if (allNodes[nodeId].hiddenLabel === undefined) {
+              allNodes[nodeId].hiddenLabel = allNodes[nodeId].label;
+            //   allNodes[nodeId].label = undefined;
+            }
+          }
+          var connectedNodes = network.getConnectedNodes(selectedNode);
+          var allConnectedNodes = [];
+
+          // get the second degree nodes
+          for (i = 1; i < degrees; i++) {
+            for (j = 0; j < connectedNodes.length; j++) {
+              allConnectedNodes = allConnectedNodes.concat(
+                network.getConnectedNodes(connectedNodes[j])
+              );
+            }
+          }
+
+          // all second degree nodes get a different color and their label back
+          for (i = 0; i < allConnectedNodes.length; i++) {
+            allNodes[allConnectedNodes[i]].color = "rgba(150,150,150,0.75)";
+            if (allNodes[allConnectedNodes[i]].hiddenLabel !== undefined) {
+              allNodes[allConnectedNodes[i]].label =
+                allNodes[allConnectedNodes[i]].hiddenLabel;
+              allNodes[allConnectedNodes[i]].hiddenLabel = undefined;
+            }
+          }
+
+          // all first degree nodes get their own color and their label back
+          for (i = 0; i < connectedNodes.length; i++) {
+            allNodes[connectedNodes[i]].color = undefined;
+            if (allNodes[connectedNodes[i]].hiddenLabel !== undefined) {
+              allNodes[connectedNodes[i]].label =
+                allNodes[connectedNodes[i]].hiddenLabel;
+              allNodes[connectedNodes[i]].hiddenLabel = undefined;
+            }
+          }
+
+          // the main node gets its own color and its label back.
+          allNodes[selectedNode].color = undefined;
+          if (allNodes[selectedNode].hiddenLabel !== undefined) {
+            allNodes[selectedNode].label = allNodes[selectedNode].hiddenLabel;
+            allNodes[selectedNode].hiddenLabel = undefined;
+          }
+        } else if (highlightActive === true) {
+          // reset all nodes
+          for (var nodeId in allNodes) {
+            allNodes[nodeId].color = undefined;
+            if (allNodes[nodeId].hiddenLabel !== undefined) {
+              allNodes[nodeId].label = allNodes[nodeId].hiddenLabel;
+              allNodes[nodeId].hiddenLabel = undefined;
+            }
+          }
+          highlightActive = false;
+        }
+
+        // transform the object into an array
+        var updateArray = [];
+        for (nodeId in allNodes) {
+          if (allNodes.hasOwnProperty(nodeId)) {
+            updateArray.push(allNodes[nodeId]);
+          }
+        }
+        nodesDataset.update(updateArray);
+      }
+
+      redrawAll();
+    </script>
+
+    
+  </body>
+</html>
